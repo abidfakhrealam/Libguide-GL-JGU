@@ -18,10 +18,10 @@ $page_title  = _( "Database List" );
 $description = _( "An alphabetical list of the electronic resources available." );
 $keywords    = _( "library, research, electronic journals, databases, electronic resources, full text, online, magazine, articles, paper, assignment" );
 
-// set a default if the letter isn't set
+// Set ALL as a default if the letter isn't set
 if ( ! isset( $_GET["letter"] ) ) {
-	$_GET["letter"] = "A";
-	$page_title     .= ":  A";
+	$_GET["letter"] = "All";
+	$page_title     .= ":  All";
 } else {
 	$page_title .= ": " . ucfirst( scrubData( $_GET["letter"] ) );
 }
@@ -48,31 +48,71 @@ if ( $_GET["letter"] == "bysub" ) {
 		$statement->bindParam( ":id", $clean_id );
 		$statement->execute();
 		$myrow = $statement->fetchAll();
+		if (!empty($myrow)) {
+		    $page_title .= ": " . $myrow[0][0];
+			} else {
+    		// handle the case where the subject was not found
+    		    $page_title .= ": " . _("Unknown Subject");
+			}
+			}
+		} else {
+			$_GET["subject_id"] = "";
+			$show_subjects      = false;
+		}
 
-		$page_title .= ": " . $myrow[0][0];
-	}
-} else {
-	$_GET["subject_id"] = "";
-	$show_subjects      = false;
-}
-
-// Deal with databases by type display
-if ( $_GET["letter"] == "bytype" ) {
-	$page_title = _( "Database List By Format" );
-	if ( ! isset( $_GET["type"] ) ) {
-		$_GET["type"] = "";
-		$show_types   = true;
+	// Deal with databases by type display
+	if ( $_GET["letter"] == "bytype" ) {
+		$page_title = _( "Database List By Format" );
+		if ( ! isset( $_GET["type"] ) ) {
+			$_GET["type"] = "";
+			$show_types   = true;
+		} else {
+			$clean_type  = ucfirst( scrubData( $_GET["type"] ) );
+			$pretty_type = ucwords( preg_replace( '/_/', ' ', $clean_type ) );
+			$page_title  .= ": " . $pretty_type;
+			$show_types  = false;
+		}
 	} else {
-		$clean_type  = ucfirst( scrubData( $_GET["type"] ) );
-		$pretty_type = ucwords( preg_replace( '/_/', ' ', $clean_type ) );
-		$page_title  .= ": " . $pretty_type;
-		$show_types  = false;
+		$_GET["type"] = "";
+		$show_types   = false;
+		$clean_type   = "";
 	}
-} else {
-	$_GET["type"] = "";
-	$show_types   = false;
-	$clean_type   = "";
-}
+
+	// Deal with databases by source display
+	if ( $_GET["letter"] == "bysource" ) {
+		$page_title = _( "Database List By Source" );
+		if ( ! isset( $_GET["source"] ) ) {
+			$_GET["source"] = "";
+			$show_sources   = true;
+		} else {
+			$clean_source  = ucfirst( scrubData( $_GET["source"] ) );
+			$pretty_source = ucwords( preg_replace( '/_/', ' ', $clean_source ) );
+			$page_title  .= ": " . $pretty_source;
+			$show_sources  = false;
+		}
+	} else {
+		$_GET["source"] = "";
+		$show_sources   = false;
+		$clean_source   = "";
+	}
+
+	// Deal with databases by publisher display
+	if ( $_GET["letter"] == "bypublisher" ) {
+		$page_title = _( "Database List By Publisher" );
+		if ( ! isset( $_GET["display_note"] ) ) {
+			$_GET["display_note"] = "";
+			$show_publishers   = true;
+		} else {
+			$clean_publisher  = ucfirst( scrubData( $_GET["display_note"] ) );
+			$pretty_publisher = ucwords( preg_replace( '/_/', ' ', $clean_publisher ) );
+			$page_title  .= ": " . $pretty_publisher;
+			$show_publishers  = false;
+		}
+	} else {
+		$_GET["display_note"] = "";
+		$show_publishers   = false;
+		$clean_publisher   = "";
+	}
 
 // Add a quick search
 $description_search = 0; // init to negative
@@ -156,18 +196,30 @@ $out = "";
 
 if ( $show_subjects == true ) {
 	$out .= $our_items->displaySubjects();
-
+} elseif ( $show_sources == true ) {
+	$out .= $our_items->displaySources();
 } elseif ( $show_types == true ) {
 
 	$out .= $our_items->displayTypes();
+} elseif ( $show_publishers == true ) {
+	$out .= $our_items->displayPublishers();
 } else {
-	// if it's the type type, show filter tip
+	// if it's the type, show filter tip
 	if ( isset( $clean_type ) && $clean_type != "" ) {
-		$out .= "<div class=\"feature-light p-3 mb-3\">Displaying databases filtered by <em><strong>$clean_type</strong></em>. <a href=\"databases.php?letter=bytype\" class=\"no-decoration\">View all types</a>.</div>";
+		$out .= "<div class=\"feature-light p-3 mb-3\">Displaying resources filtered by <em><strong>$clean_type</strong></em>. <a href=\"databases.php?letter=bytype\" class=\"no-decoration\">View all types</a>.</div>";
 	}
 
-	// otherwise display our results from the database list
+	// if it's the source, show filter tip
+	if ( isset( $clean_source ) && $clean_source != "" ) {
+		$out .= "<div class=\"feature-light p-3 mb-3\">Displaying resources filtered by <em><strong>$clean_source</strong></em>. <a href=\"databases.php?letter=bysource\" class=\"no-decoration\">View all sources</a>.</div>";
+	}
+	
+	// if it's the publisher, show filter tip
+    if ( isset( $clean_publisher ) && $clean_publisher != "" ) {
+        $out .= "<div class=\"feature-light p-3 mb-3\">Displaying resources filtered by <em><strong>$clean_publisher</strong></em>. <a href=\"databases.php?letter=bypublisher\" class=\"no-decoration\">View all publishers</a>.</div>";
+    }
 
+	// otherwise display our results from the database list
 	$out .= $our_items->writeTable( $_GET["letter"], $clean_id, $description_search );
 }
 
@@ -269,7 +321,17 @@ if ( isset ( $v2styles ) && $v2styles == 1 ) {
                     width: '250px',
                     size: '10'
                 });
-
+		$('#select_source').selectpicker({
+                    style: 'btn-select-db',
+                    width: '250px',
+                    size: '10'
+                });
+		$('#select_publisher').selectpicker({
+                    style: 'btn-select-db',
+                    width: '250px',
+                    size: '10'
+                });
+		    
                 // show all db details
                 $('#expander').click(function () {
                     $('.list_bonus').toggle();

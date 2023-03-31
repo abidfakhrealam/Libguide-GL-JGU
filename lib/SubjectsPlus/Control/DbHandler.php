@@ -223,7 +223,7 @@ class DbHandler {
 
 					$connection = $db->getConnection ();
 					$statement = $connection->prepare ( "
-        		SELECT distinct left(t.title,1) as initial, t.title as newtitle, t.description, location, access_restrictions, t.title_id as this_record,eres_display, display_note, pre, citation_guide, ctags, helpguide
+        		SELECT distinct left(t.title,1) as initial, t.title as newtitle, t.description, location, access_restrictions, t.title_id as this_record,eres_display, display_note, pre, citation_guide, ctags, helpguide, s.source_id, s.source
             FROM title as t
             INNER JOIN location_title as lt
             ON t.title_id = lt.title_id
@@ -240,6 +240,66 @@ class DbHandler {
             ORDER BY newtitle" );
 
 					$statement->bindParam ( ":type", $type );
+					$statement->execute ();
+					$results = $statement->fetchAll ();
+				}
+
+				break;
+						case "bysource" :
+
+				if (isset ( $_GET ["source"] )) {
+
+					$source = scrubData ( "%" . $_GET ["source"] . "%" );
+
+					$connection = $db->getConnection ();
+					$statement = $connection->prepare ( "
+        		SELECT distinct left(t.title,1) as initial, t.title as newtitle, s.source_id, s.source, t.description, location, access_restrictions, t.title_id as this_record,eres_display, display_note, pre, citation_guide, ctags, helpguide, s.source_id, s.source
+            FROM title as t
+            INNER JOIN location_title as lt
+            ON t.title_id = lt.title_id
+            INNER JOIN location as l
+            ON lt.location_id = l.location_id
+            INNER JOIN restrictions as r
+            ON l.access_restrictions = r.restrictions_id
+            INNER JOIN rank as rk
+            ON rk.title_id = t.title_id
+            INNER JOIN source as s
+            ON rk.source_id = s.source_id
+            WHERE s.source LIKE :source
+            AND eres_display = 'Y'
+            ORDER BY newtitle" );
+
+					$statement->bindParam ( ":source", $source );
+					$statement->execute ();
+					$results = $statement->fetchAll ();
+				}
+
+				break;
+			case "bypublisher" :
+
+				if (isset ( $_GET ["display_note"] )) {
+
+					$publisher = scrubData ( "%" . $_GET ["display_note"] . "%" );
+
+					$connection = $db->getConnection ();
+					$statement = $connection->prepare ( "
+        		SELECT distinct left(t.title,1) as initial, t.title as newtitle, s.source_id, s.source, t.description, location, access_restrictions, t.title_id as this_record,eres_display, display_note, pre, citation_guide, ctags, helpguide, s.source_id, s.source
+            FROM title as t
+            INNER JOIN location_title as lt
+            ON t.title_id = lt.title_id
+            INNER JOIN location as l
+            ON lt.location_id = l.location_id
+            INNER JOIN restrictions as r
+            ON l.access_restrictions = r.restrictions_id
+            INNER JOIN rank as rk
+            ON rk.title_id = t.title_id
+            INNER JOIN source as s
+            ON rk.source_id = s.source_id
+            WHERE display_note LIKE :display_note
+            AND eres_display = 'Y'
+            ORDER BY newtitle" );
+
+					$statement->bindParam ( ":display_note", $publisher );
 					$statement->execute ();
 					$results = $statement->fetchAll ();
 				}
@@ -437,7 +497,7 @@ ORDER BY newtitle
 			if ($myrow ["display_note"] == NULL) {
 				$display_note_text = "";
 			} else {
-				$display_note_text = "<div class=\"db-note\"><strong>" . _ ( "Note:" ) . " </strong>" . $myrow ['display_note'] . "</div>";
+				$display_note_text = "<div class=\"db-note\"><strong>" . _ ( "Publisher:" ) . " </strong>" . $myrow ['display_note'] . "</div>";
 			}
 
 			$bonus = "$blurb<br />";
@@ -537,6 +597,60 @@ ORDER BY s.subject");
 		$items .= "</table>";
 		return $items;
 	}
+	function displaySources() {
+
+		$db = new Querier;
+		$connection = $db->getConnection();
+		$statement = $connection->prepare ( "SELECT distinct r.source_id, ss.source
+FROM subject s 
+LEFT JOIN rank r ON r.subject_id = s.subject_id
+LEFT JOIN source ss ON r.source_id = ss.source_id AND r.dbbysub_active = 1
+WHERE EXISTS (
+    SELECT lt.title_id
+    FROM location_title lt
+    INNER JOIN location l ON l.location_id = lt.location_id
+    INNER JOIN title t ON t.title_id = lt.title_id
+    WHERE lt.title_id = r.title_id
+    AND l.eres_display = 'Y'
+    AND l.record_status = 'Active'
+)
+AND s.active = 1
+ORDER BY ss.source;");
+
+		$statement->bindParam ( ":qualifer", $letter );
+		$statement->execute ();
+		$r = $statement->fetchAll();
+
+		// check row count for 0 returns
+
+		$num_rows = count ( $r );
+
+		if ($num_rows == 0) {
+			return "<div class=\"no_results\">" . _ ( "Sorry, there are no results at this time." ) . "</div>";
+		}
+
+		// prepare header
+		$items = "<table width=\"98%\" class=\"item_listing\">";
+
+		$row_count = 0;
+		$colour1 = "oddrow";
+		$colour2 = "evenrow";
+
+		foreach ( $r as $myrow ) {
+
+			$row_colour = ($row_count % 2) ? $colour1 : $colour2;
+
+			$items .= "
+	<tr class=\"zebra $row_colour\" valign=\"top\">
+		<td><a href=\"databases.php?letter=bysource&amp;source=$myrow[1]\">$myrow[1]</a></td>
+	</tr>";
+
+			$row_count ++;
+		}
+
+		$items .= "</table>";
+		return $items;
+	}	
 	function displayTypes() {
 		global $all_ctags;
 		sort ( $all_ctags );
@@ -555,6 +669,64 @@ ORDER BY s.subject");
 		$items .= "</table>";
 		return $items;
 	}
+		
+	function displayPublishers() {
+
+		$db = new Querier;
+		$connection = $db->getConnection();
+		$statement = $connection->prepare ( "SELECT DISTINCT l.display_note
+FROM subject s 
+LEFT JOIN rank r ON r.subject_id = s.subject_id
+LEFT JOIN source ss ON r.source_id = ss.source_id AND r.dbbysub_active = 1
+LEFT JOIN location_title lt ON lt.title_id = r.title_id
+LEFT JOIN location l ON l.location_id = lt.location_id
+WHERE EXISTS (
+    SELECT lt.title_id
+    FROM location_title lt
+    INNER JOIN location l ON l.location_id = lt.location_id
+    INNER JOIN title t ON t.title_id = lt.title_id
+    WHERE lt.title_id = r.title_id
+    AND l.eres_display = 'Y'
+    AND l.record_status = 'Active'
+)
+AND s.active = 1
+ORDER BY l.display_note;");
+
+		$statement->bindParam ( ":qualifer", $letter );
+		$statement->execute ();
+		$r = $statement->fetchAll();
+
+		// check row count for 0 returns
+
+		$num_rows = count ( $r );
+
+		if ($num_rows == 0) {
+			return "<div class=\"no_results\">" . _ ( "Sorry, there are no results at this time." ) . "</div>";
+		}
+
+		// prepare header
+		$items = "<table width=\"98%\" class=\"item_listing\">";
+
+		$row_count = 0;
+		$colour1 = "oddrow";
+		$colour2 = "evenrow";
+
+		foreach ( $r as $myrow ) {
+
+			$row_colour = ($row_count % 2) ? $colour1 : $colour2;
+
+			$items .= "
+	<tr class=\"zebra $row_colour\" valign=\"top\">
+		<td><a href=\"databases.php?letter=bypublisher&amp;display_note=$myrow[0]\">$myrow[0]</a></td>
+	</tr>";
+
+			$row_count ++;
+		}
+
+		$items .= "</table>";
+		return $items;
+	}	
+	
 	function deBug() {
 		print "Query:  " . $q;
 	}

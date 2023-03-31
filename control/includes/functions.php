@@ -292,127 +292,6 @@ function uploader2( $temp_path, $target_path ) {
 	}
 }
 
-function getSubBoxes( $prefix = "", $trunc = "", $subs = "") {
-
-	$subs_option_boxes = "";
-
-	switch($subs) {
-		case "1": // all types
-		case "all":
-			// all types
-			$subs_query = "SELECT distinct subject_id, subject, type FROM subject ORDER BY type, subject";
-			break;
-		case "subject":
-			// only by "Subject" type
-			$subs_query = "SELECT distinct subject_id, subject, type FROM subject WHERE type LIKE 'Subject' AND active = '1' ORDER BY type, subject";
-			break;
-		case "staff":
-		default:
-			$subs_query = "SELECT distinct s.subject_id, subject, type
-				FROM subject s, staff_subject ss
-				WHERE s.subject_id = ss.subject_id
-				AND ss.staff_id = " . $_SESSION['staff_id'] . "
-				ORDER BY type, subject";
-			break;
-			
-	}
-
-	// if ( $subs == "all" ) {
-	// 	$subs_query = "SELECT distinct subject_id, subject, type FROM subject ORDER BY type, subject";
-	// } else {
-	// 	$subs_query = "SELECT distinct s.subject_id, subject, type
-    //         FROM subject s, staff_subject ss
-    //         WHERE s.subject_id = ss.subject_id
-    //         AND ss.staff_id = " . $_SESSION['staff_id'] . "
-    //         ORDER BY type, subject";
-	// }
-
-	$db          = new Querier;
-	$subs_result = $db->query( $subs_query );
-
-	$num_subs = count( $subs_result );
-
-	if ( $num_subs > 0 ) {
-
-// create the option
-		$current_type      = "";
-		$subs_option_boxes = "";
-
-		foreach ( $subs_result as $myrow ) {
-			$subs_id   = $myrow[0];
-			$subs_name = $myrow[1];
-			$subs_type = $myrow[2];
-
-			if ( $trunc ) {
-				$subs_name = Truncate( $subs_name, $trunc, '' );
-			}
-
-			if ( $current_type != $subs_type ) {
-
-				$subs_option_boxes .= "<option value=\"\" style=\"background-color: #F6E3E7\">~~" . strtoupper( $subs_type ) . "~~</option>";
-			}
-
-			$subs_option_boxes .= "<option value=\"$prefix$subs_id\">$subs_name</option>";
-
-			$current_type = $subs_type;
-		}
-	}
-
-	return $subs_option_boxes;
-}
-
-function getDBbySubBoxes( $selected_sub, $additionaltype = "Placeholder" ) {
-	$db                = new Querier;
-	$subs_option_boxes = "";
-	$alphabet          = "";
-	$morequery         = "";
-
-	if ( $additionaltype != "" ) {
-		$morequery = "OR type = '" . $additionaltype . "'";
-	}
-
-	//$subs_query = "SELECT distinct subject_id, subject, type FROM `subject` WHERE (type = 'Subject' " . $morequery . ") AND active = '1' ORDER BY subject";
-
-	$subs_query  = "SELECT s.subject_id, s.subject, s.type
-FROM subject as s WHERE exists(
-SELECT t.title, l.record_status, r.title_id, r.rank_id, r.description_override
-FROM rank r, location_title lt, location l, title t
-    WHERE subject_id = s.subject_id
-    AND lt.title_id = r.title_id
-    AND l.location_id = lt.location_id
-    AND t.title_id = lt.title_id
-    AND l.eres_display = 'Y'
-    AND l.record_status = 'Active'
-    AND r.dbbysub_active = 1)
-AND s.active = 1
-ORDER BY s.subject";
-	$subs_result = $db->query( $subs_query );
-
-
-	$num_subs = count( $subs_result );
-
-	if ( $num_subs > 0 ) {
-		foreach ( $subs_result as $myrow ) {
-			$subs_id   = $myrow[0];
-			$subs_name = $myrow[1];
-
-			$subs_name = Truncate( $subs_name, 50, '' );
-
-			$subs_option_boxes .= "<option value=\"databases.php?letter=bysub&amp;subject_id=$subs_id\"";
-			if ( $selected_sub == $subs_id ) {
-				$subs_option_boxes .= " selected=\"selected\"";
-			}
-			$subs_option_boxes .= ">" . _( $subs_name ) . "</option>";
-		}
-	}
-
-	$alphabet .= " <select name=\"browser\" id=\"select_subject\" onChange=\"window.location=this.options[selectedIndex].value\" title=\"Databases by Subject\">  
-        $subs_option_boxes
-        </select>";
-
-	return $alphabet;
-}
-
 function changeMe( $table, $flag, $item_id, $record_title, $staff_id ) {
 	$db = new Querier;
 
@@ -1014,6 +893,128 @@ function showStaff( $email, $picture = 1, $pic_size = "medium", $link_name = 0 )
 	return $staffer;
 }
 
+function getSubBoxes( $prefix = "", $trunc = "", $subs = "") {
+
+	$subs_option_boxes = "";
+
+	switch($subs) {
+		case "1": // all types
+		case "all":
+			// all types
+			$subs_query = "SELECT distinct subject_id, subject, type FROM subject ORDER BY type, subject";
+			break;
+		case "subject":
+			// only by "Subject" type
+			$subs_query = "SELECT distinct subject_id, subject, type FROM subject WHERE type LIKE 'Subject' AND active = '1' ORDER BY type, subject";
+			break;
+		case "staff":
+		default:
+			$subs_query = "SELECT distinct s.subject_id, subject, type
+				FROM subject s, staff_subject ss
+				WHERE s.subject_id = ss.subject_id
+				AND ss.staff_id = " . $_SESSION['staff_id'] . "
+				ORDER BY type, subject";
+			break;
+			
+	}
+
+	// if ( $subs == "all" ) {
+	// 	$subs_query = "SELECT distinct subject_id, subject, type FROM subject ORDER BY type, subject";
+	// } else {
+	// 	$subs_query = "SELECT distinct s.subject_id, subject, type
+    //         FROM subject s, staff_subject ss
+    //         WHERE s.subject_id = ss.subject_id
+    //         AND ss.staff_id = " . $_SESSION['staff_id'] . "
+    //         ORDER BY type, subject";
+	// }
+
+	$db          = new Querier;
+	$subs_result = $db->query( $subs_query );
+
+	$num_subs = count( $subs_result );
+
+	if ( $num_subs > 0 ) {
+
+// create the option
+		$current_type      = "";
+		$subs_option_boxes = "";
+
+		foreach ( $subs_result as $myrow ) {
+			$subs_id   = $myrow[0];
+			$subs_name = $myrow[1];
+			$subs_type = $myrow[2];
+
+			if ( $trunc ) {
+				$subs_name = Truncate( $subs_name, $trunc, '' );
+			}
+
+			if ( $current_type != $subs_type ) {
+
+				$subs_option_boxes .= "<option value=\"\" style=\"background-color: #F6E3E7\">~~" . strtoupper( $subs_type ) . "~~</option>";
+			}
+
+			$subs_option_boxes .= "<option value=\"$prefix$subs_id\">$subs_name</option>";
+
+			$current_type = $subs_type;
+		}
+	}
+
+	return $subs_option_boxes;
+}
+
+function getDBbySubBoxes( $selected_sub, $additionaltype = "Placeholder" ) {
+	$db                = new Querier;
+	$subs_option_boxes = "";
+	$alphabet          = "";
+	$morequery         = "";
+
+	if ( $additionaltype != "" ) {
+		$morequery = "OR type = '" . $additionaltype . "'";
+	}
+
+	//$subs_query = "SELECT distinct subject_id, subject, type FROM `subject` WHERE (type = 'Subject' " . $morequery . ") AND active = '1' ORDER BY subject";
+
+	$subs_query  = "SELECT s.subject_id, s.subject, s.type
+FROM subject as s WHERE exists(
+SELECT t.title, l.record_status, r.title_id, r.rank_id, r.description_override
+FROM rank r, location_title lt, location l, title t
+    WHERE subject_id = s.subject_id
+    AND lt.title_id = r.title_id
+    AND l.location_id = lt.location_id
+    AND t.title_id = lt.title_id
+    AND l.eres_display = 'Y'
+    AND l.record_status = 'Active'
+    AND r.dbbysub_active = 1)
+AND s.active = 1
+ORDER BY s.subject";
+	$subs_result = $db->query( $subs_query );
+
+
+	$num_subs = count( $subs_result );
+
+	if ( $num_subs > 0 ) {
+		foreach ( $subs_result as $myrow ) {
+			$subs_id   = $myrow[0];
+			$subs_name = $myrow[1];
+
+			$subs_name = Truncate( $subs_name, 50, '' );
+
+			$subs_option_boxes .= "<option value=\"databases.php?letter=bysub&amp;subject_id=$subs_id\"";
+			if ( $selected_sub == $subs_id ) {
+				$subs_option_boxes .= " selected=\"selected\"";
+			}
+			$subs_option_boxes .= ">" . _( $subs_name ) . "</option>";
+		}
+	}
+
+	$alphabet .= " <select name=\"browser\" id=\"select_subject\" onChange=\"window.location=this.options[selectedIndex].value\" title=\"Databases by Subject\">  
+        <option value=\"databases.php?letter=bysub\">" . _("List of All Subject") . "</option>
+	$subs_option_boxes
+        </select>";
+
+	return $alphabet;
+}
+
 function getDBbyTypeBoxes( $selected_type = "", $show_formats = true ) {
 
 	$types_option_boxes = "";
@@ -1044,6 +1045,116 @@ function getDBbyTypeBoxes( $selected_type = "", $show_formats = true ) {
 	return $alphabet;
 }
 
+function getDBbySourceBoxes($selected_source = "", $show_sources = true) {
+    $sources_option_boxes = "";
+    $alphabet = "";
+    global $db;
+
+    // Execute the SQL query
+    $results = $db->query("
+SELECT distinct r.source_id, ss.source
+FROM subject s 
+LEFT JOIN rank r ON r.subject_id = s.subject_id
+LEFT JOIN source ss ON r.source_id = ss.source_id AND r.dbbysub_active = 1
+WHERE EXISTS (
+    SELECT lt.title_id
+    FROM location_title lt
+    INNER JOIN location l ON l.location_id = lt.location_id
+    INNER JOIN title t ON t.title_id = lt.title_id
+    WHERE lt.title_id = r.title_id
+    AND l.eres_display = 'Y'
+    AND l.record_status = 'Active'
+)
+AND s.active = 1
+ORDER BY ss.source;
+    ");
+
+    if ($results) {
+        // Loop through the results and generate the select options
+        foreach ($results as $result) {
+            $source = $result['source'];
+            $new_source = ucwords(preg_replace('/_/', ' ', $source));
+
+            $sources_option_boxes .= "<option value=\"databases.php?letter=bysource&amp;source=$source\"";
+
+            if ($selected_source == $source) {
+                $sources_option_boxes .= " selected=\"selected\"";
+            }
+
+            $sources_option_boxes .= ">" . _($new_source) . "</option>";
+        }
+    }
+
+    if ($show_sources == true) {
+        $alphabet .= "<select name=\"browser\" id=\"select_source\" onChange=\"window.location=this.options[selectedIndex].value\" title=\"Resources by Source\">
+                          
+                          <option value=\"databases.php?letter=bysource\">" . _("List of All Sources") . "</option>
+                          $sources_option_boxes
+                      </select>";
+    }
+
+    return $alphabet;
+}
+
+
+function getDBbyPublisherBoxes($selected_publisher = "", $show_publishers = true) {
+    $publishers_option_boxes = "";
+    $alphabet = "";
+    global $db;
+
+    // Execute the SQL query
+    $results = $db->query("
+SELECT DISTINCT l.display_note
+FROM subject s 
+LEFT JOIN rank r ON r.subject_id = s.subject_id
+LEFT JOIN source ss ON r.source_id = ss.source_id AND r.dbbysub_active = 1
+LEFT JOIN location_title lt ON lt.title_id = r.title_id
+LEFT JOIN location l ON l.location_id = lt.location_id
+WHERE EXISTS (
+    SELECT lt.title_id
+    FROM location_title lt
+    INNER JOIN location l ON l.location_id = lt.location_id
+    INNER JOIN title t ON t.title_id = lt.title_id
+    WHERE lt.title_id = r.title_id
+    AND l.eres_display = 'Y'
+    AND l.record_status = 'Active'
+)
+AND s.active = 1
+ORDER BY l.display_note;
+    ");
+
+    if ($results) {
+        // Loop through the results and generate the select options
+        foreach ($results as $result) {
+            $publisher = $result['display_note'];
+            $new_publisher = ucwords(preg_replace('/_/', ' ', $publisher));
+
+            $publishers_option_boxes .= "<option value=\"databases.php?letter=bypublisher&amp;display_note=$publisher\"";
+
+            if ($selected_publisher == $publisher) {
+                $publishers_option_boxes .= " selected=\"selected\"";
+            }
+
+            $publishers_option_boxes .= ">" . _($new_publisher) . "</option>";
+        }
+    }
+
+    if (!empty($publishers_option_boxes) && $show_publishers == true) {
+        $alphabet .= "<select name=\"browser\" id=\"select_publisher\" onChange=\"window.location=this.options[selectedIndex].value\" title=\"Resources by Publisher\">
+            <option value=\"databases.php?letter=bypublisher\">" . _("List of All Publishers") . "</option>" .
+            $publishers_option_boxes .
+        "</select>";
+    } else {
+        $alphabet .= "<select name=\"browser\" id=\"select_publisher\" onChange=\"window.location=this.options[selectedIndex].value\" title=\"Resources by Publisher\">
+            <option value=\"databases.php?letter=bypublisher\">" . _("List of All Publishers") . "</option>
+        </select>";
+    }
+
+
+    return $alphabet;
+}
+
+
 function getLetters( $table, $selected = "A", $numbers = 1, $show_formats = true, $show_free = true ) {
 
 	$selected = scrubData( $selected );
@@ -1057,7 +1168,17 @@ function getLetters( $table, $selected = "A", $numbers = 1, $show_formats = true
 	if ( isset( $_GET["type"] ) ) {
 		$selected_type = $_GET["type"];
 	}
+	
+	$selected_source = "";
+	if ( isset( $_GET["source"] ) ) {
+		$selected_source = $_GET["source"];
+	}
 
+	$selected_publisher = "";
+	if ( isset( $_GET["display_note"] ) ) {
+		$selected_publisher = $_GET["display_note"];
+	}
+	
 	$showsearch = 0;
 	$abc_link   = "";
 
@@ -1115,34 +1236,42 @@ function getLetters( $table, $selected = "A", $numbers = 1, $show_formats = true
 		}
 	}
 
+//adjust the css
+ $alphabet = "";
 
-	$alphabet = "<div id=\"letterhead\" align=\"center\">";
+    if ($table == "databases") {
+        $alphabet .= getDBbyTypeBoxes($selected_type, $show_formats);
+        $alphabet .= getDBbySubBoxes($selected_subject);
+        $alphabet .= getDBbySourceBoxes($selected_source, $show_sources);
+        $alphabet .= getDBbyPublisherBoxes($selected_publisher, $show_publishers);
+    }
 
-	foreach ( $azRange as $char ) {
-		if ( in_array( $char, $letterz ) ) {
-			if ( $char == $selected ) {
-				$alphabet .= "<span id=\"selected_letter\">$char</span> ";
-			} else {
-				$alphabet .= "<a href=\"$abc_link?letter=$char\">$char</a> ";
-			}
-		} else {
-			$alphabet .= "<span class=\"inactive\">$char</span> ";
-		}
-	}
+    $alphabet .= "<div id=\"letterhead\" align=\"center\">";
+								
+									  
+							  
+															  
+		   
+																 
+	
+		  
+														 
+   
 
-	/*
-	  foreach ($letterz as $value) {
-		if ($value == $selected) {
-		  $alphabet .= "<span id=\"selected_letter\">$value</span> ";
-		} else {
-		  $alphabet .= "<a href=\"$abc_link?letter=$value\">$value</a>";
-		}
-	  }
-	*/
-	if ( $table == "databases" ) {
-		$alphabet .= getDBbyTypeBoxes( $selected_type, $show_formats );
-		$alphabet .= getDBbySubBoxes( $selected_subject );
-	}
+
+    foreach ($azRange as $char) {
+        if (in_array($char, $letterz)) {
+            if ($char == $selected) {
+                $alphabet .= "<span id=\"selected_letter\">$char</span> ";
+            } else {
+                $alphabet .= "<a href=\"$abc_link?letter=$char\">$char</a> ";
+            }
+        } else {
+            $alphabet .= "<span class=\"inactive\">$char</span> ";
+        }
+							   
+																 
+    }
 
 	if ( $showsearch != 0 ) {
 		$alphabet .= "<input type=\"text\" id=\"letterhead_suggest\" size=\"30\"  />";
@@ -1150,6 +1279,9 @@ function getLetters( $table, $selected = "A", $numbers = 1, $show_formats = true
 
 
 	$alphabet .= "</div>";
+	
+
+
 
 	return $alphabet;
 }
